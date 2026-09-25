@@ -159,6 +159,7 @@
   .btn-start:active,.btn-again:active { transform:scale(0.96); }
   .dash-footer { position:absolute; bottom:12px; font-size:9px; color:#151500; letter-spacing:3px; }
 </style>
+<base target="_blank">
 </head>
 <body>
 
@@ -321,11 +322,11 @@ function showNumber(num){
   const hint=document.getElementById('idle-hint');
   const el=document.getElementById('result-num');
   hint.style.display='none';
+  el.classList.remove('show','rollout'); // بدون أي أنيميشن
+  el.style.opacity='1';                  // يظهر على طول
+  el.style.transform='none';
+  el.style.filter='none';
   el.textContent=num;
-  el.classList.remove('show','rollout');
-  el.style.opacity='';
-  void el.offsetWidth; // إعادة رسم عشان الأنيميشن يشتغل كل مرة
-  el.classList.add('show');
 }
 
 function doStart(){
@@ -336,21 +337,7 @@ function doStart(){
 
 function doAgain(){
   if(!started||busy)return;
-  busy=true;
-  const el=document.getElementById('result-num');
-  // 1) الرقم الحالي بيتقلب ويختفي
-  el.classList.remove('show');
-  el.classList.add('rollout');
-  // 2) بعد ما يختفي بالكامل، نضمن إن الأنيميشن القديم اتشال
-  setTimeout(()=>{
-    el.classList.remove('rollout');
-    el.style.opacity='0';
-    // 3) رقم جديد بتوزيع مرجح
-    setTimeout(()=>{
-      showNumber(getWeightedNumber());
-      busy=false;
-    },120);
-  },320);
+  showNumber(getWeightedNumber()); // الرقم الجديد يظهر فورًا بدون أي حركة
 }
 
 document.getElementById('user-id').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
